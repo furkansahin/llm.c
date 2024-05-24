@@ -9,10 +9,10 @@ on:
       - master
 
 jobs:
-  build-and-test-cpu:
+  build-and-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubicloud-gpu-standard-1-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -29,6 +29,10 @@ jobs:
             brew install libomp
           fi
 
+      - name: install nvcc
+        if: matrix.os == 'ubicloud-gpu-standard-1-latest'
+        run: sudo apt-get install -y nvidia-cuda-toolkit
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -37,6 +41,8 @@ jobs:
 
       - name: Train model
         run: python train_gpt2.py --device=cpu
+      - name: Train model on GPU
+        run: python train_gpt2.py
 
       - name: Download Win32 Make.exe
         if: matrix.os == 'windows-latest'
@@ -52,15 +58,7 @@ jobs:
           unzip make-bin-win64.zip
 
       - name: Compile training and testing program
-        if: matrix.os != 'windows-latest'
-        run: make test_gpt2 train_gpt2
-
-      - name: Compile training and testing program for Windows
-        if: matrix.os == 'windows-latest'
-        shell: cmd
-        run: |
-          call "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
-          make-4.4.1\dist\make WIN_CI_BUILD=1 test_gpt2 train_gpt2
+        run: make test_gpt2 train_gpt2 test_gpt2cu train_gpt2cu
 
       - name: Execute testing program (With OpenMP)
         if: matrix.os != 'windows-latest'
@@ -73,14 +71,21 @@ jobs:
           copy test_gpt2 test_gpt2.exe
           test_gpt2.exe
 
+      - name: Execute testing program (With OpenMP) on GPU
+        if: matrix.os == 'ubicloud-gpu-standard-1-latest'
+        run: OMP_NUM_THREADS=8 ./test_gpt2cu
+
       - name: Compile training and testing program without OpenMP
         if: matrix.os != 'windows-latest'
-        run: NO_OMP=1 make test_gpt2 train_gpt2
+        run: NO_OMP=1 make test_gpt2 train_gpt2 test_gpt2cu train_gpt2cu
 
       - name: Execute testing program (No OpenMP)
         if: matrix.os != 'windows-latest'
         run: ./test_gpt2
 
+      - name: Execute testing program (No OpenMP) on GPU
+        if: matrix.os == 'ubicloud-gpu-standard-1-latest'
+        run: ./test_gpt2cu
   build-cuda-windows:
     runs-on: windows-latest
     steps:
@@ -93,11 +98,9 @@ jobs:
           $url = 'https://github.com/maweil/MakeForWindows/releases/download/v4.4.1/make-bin-win64.zip'
           $output = './make-bin-win64.zip'
           $wc.DownloadFile($url, $output)
-
     - name: Unzip Win32 Makefile
       run: |
         unzip make-bin-win64.zip
-
     - name: Install Cuda Toolkit 12.4 on Windows
       run: |
         mkdir -p "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
@@ -121,7 +124,6 @@ jobs:
         xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\visual_studio_integration-windows-x86_64-12.4.127-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" /E /I /H /Y
         xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\cuda_nvprof-windows-x86_64-12.4.127-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" /E /I /H /Y
         xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\cuda_cccl-windows-x86_64-12.4.127-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" /E /I /H /Y
-
     # Default installation path for CUDA Toolkit is C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4
     - name: Add Path
       run: |
@@ -129,7 +131,6 @@ jobs:
         echo "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\libnvvp" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         echo "CUDA_PATH_V12_4=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
     - name: Build Cuda targets
       shell: cmd
       working-directory: ${{ github.workspace }}
