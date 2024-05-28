@@ -102,6 +102,12 @@ jobs:
       - name: Compile training and testing program
         run: make test_gpt2cu train_gpt2cu test_gpt2fp32cu train_gpt2fp32cu 
 
+      - name: Train model (With OpenMP)
+        run: OMP_NUM_THREADS=8 ./train_gpt2cu
+
+      - name: Train model fp32 (With OpenMP)
+        run: OMP_NUM_THREADS=8 ./train_gpt2fp32cu
+
       - name: Execute testing program fp32 (With OpenMP)
         run: OMP_NUM_THREADS=8 ./test_gpt2cu
       
@@ -110,6 +116,12 @@ jobs:
 
       - name: Compile training and testing program without OpenMP
         run: NO_OMP=1 make test_gpt2cu train_gpt2cu test_gpt2fp32cu train_gpt2fp32cu 
+
+      - name: Train model (No OpenMP)
+        run: NO_OMP=1 ./train_gpt2cu
+
+      - name: Train model fp32 (No OpenMP)
+        run: NO_OMP=1 ./train_gpt2fp32cu
 
       - name: Execute testing program (No OpenMP)
         run: ./test_gpt2cu -b 32
