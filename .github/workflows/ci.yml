@@ -129,6 +129,29 @@ jobs:
       - name: Execute testing program fp32 (No OpenMP)
         run: ./test_gpt2fp32cu
 
+      - name: Install cuDNN
+        run: |
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update
+          sudo apt-get -y install cudnn9-cuda-12
+          git clone https://github.com/NVIDIA/cudnn-frontend.git
+      
+      - name: Build with cuDNN
+        run: USE_CUDNN=1 make test_gpt2cu train_gpt2cu test_gpt2fp32cu train_gpt2fp32cu
+
+      - name: Train model with cuDNN
+        run: ./train_gpt2cu
+
+      - name: Train model fp32 with cuDNN
+        run: ./train_gpt2fp32cu
+
+      - name: Execute testing program with cuDNN
+        run: ./test_gpt2cu
+
+      - name: Execute testing program fp32 with cuDNN
+        run: ./test_gpt2fp32cu
+
   build-cuda-windows:
     runs-on: windows-latest
     steps:
